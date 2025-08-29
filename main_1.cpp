@@ -12,23 +12,33 @@ struct Node {
     Node(int val=0) : data(val), next(nullptr) {}
 };
 
-vector<int> numbers;
-atomic<int> currentIndex(0);
-vector<Node*> nodes;  // storage for nodes
+vector<int> arr;
+atomic<int> currIdx(0);
+vector<Node*> nodes;
 Node* head = nullptr;
 
 void insert(int idx, int val) {
-    // create node at the right index position
     nodes[idx] = new Node(val);
 }
 
 void* insertWorker(void* arg) {
-    while (true) {
-        int idx = currentIndex.fetch_add(1);
-        if (idx >= (int)numbers.size()) break;
-        insert(idx, numbers[idx]);   // use insert() function
+    for(;;) {
+        int idx = currIdx.fetch_add(1);
+        if (idx >= static_cast<int>(arr.size()))
+            break;
+        insert(idx, arr[idx]);
     }
     return nullptr;
+}
+
+bool verifyList(Node* head, const vector<int>& arr) {
+    Node* curr = head;
+    for (int i = 0; i < (int)arr.size(); i++) {
+        if (!curr || curr->data != arr[i]) return false;
+        curr = curr->next;
+    }
+    if (curr != nullptr) return false;
+    return true;
 }
 
 int main() {
@@ -39,45 +49,37 @@ int main() {
     }
 
     int val;
-    while (fin >> val && (int)numbers.size() < N) {
-        numbers.push_back(val);
+    while (fin >> val && (int)arr.size() < N) {
+        arr.push_back(val);
     }
     fin.close();
 
-    if ((int)numbers.size() < N) {
+    if ((int)arr.size() < N) {
         cerr << "Warning: File has fewer than N numbers!\n";
     }
 
-    // Preallocate nodes array
-    nodes.resize(numbers.size(), nullptr);
+    nodes.resize(arr.size(), nullptr);
 
-    // Step 2: Create M threads
     pthread_t threads[M];
     auto start = chrono::high_resolution_clock::now();
 
-    for (int i = 0; i < M; i++) pthread_create(&threads[i], nullptr, insertWorker, nullptr);
-    for (int i = 0; i < M; i++) pthread_join(threads[i], nullptr);
+    for (int i = 0; i < M; i++) 
+        pthread_create(&threads[i], nullptr, insertWorker, nullptr);
+    for (int i = 0; i < M; i++) 
+        pthread_join(threads[i], nullptr);
 
-    // Step 3: Link nodes in correct order
-    for (int i = 0; i < (int)numbers.size()-1; i++) {
+    for (int i = 0; i < (int)arr.size()-1; i++) {
         nodes[i]->next = nodes[i+1];
     }
     head = nodes[0];
 
     auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> duration = end - start;
+    chrono::duration<double> time = end - start;
 
-    // Step 4: Verify correctness
-    Node* curr = head;
-    bool ok = true;
-    for (int i = 0; i < (int)numbers.size(); i++) {
-        if (!curr || curr->data != numbers[i]) { ok = false; break; }
-        curr = curr->next;
-    }
-    if (curr != nullptr) ok = false;
+    bool check = verifyList(head, arr);
 
-    cout << "Verification: " << (ok ? "PASS" : "FAIL") << endl;
-    cout << "Execution Time: " << duration.count() << " seconds" << endl;
+    cout << "Verification: " << (check ? "PASS" : "FAIL") << endl;
+    cout << "Execution Time: " << time.count() << " seconds" << endl;
 
     return 0;
 }

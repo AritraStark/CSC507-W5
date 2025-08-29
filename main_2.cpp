@@ -36,7 +36,8 @@ public:
         if (!head) {
             head = newNode;
             tail = newNode;
-        } else {
+        } 
+        else {
             tail->next = newNode;
             tail = newNode;
         }
@@ -46,27 +47,30 @@ public:
     bool verify(const vector<int>& nums) {
         Node* curr = head;
         for (int x : nums) {
-            if (!curr || curr->data != x) return false;
+            if (!curr || curr->data != x) 
+                return false;
             curr = curr->next;
         }
-        return (curr == nullptr);
+        return curr == nullptr;
     }
 };
 
 LinkedList llist;
-vector<int> numbers;
-atomic<int> currentIndex(0);
+atomic<int> currIdx(0);
+vector<int> arr;
+
 
 void* insertWorker(void* arg) {
-    while (true) {
-        int idx = currentIndex.fetch_add(1);
-        if (idx >= (int)numbers.size()) break;
-        llist.insert(numbers[idx]);
+    for(;;) {
+        int idx = currIdx.fetch_add(1);
+        if (idx >= static_cast<int>(arr.size())) {
+            break;
+        }
+        llist.insert(arr[idx]);
     }
     return nullptr;
 }
 
-// -------------------- MAIN --------------------
 int main(int argc, char* argv[]) {
     if (argc < 3) {
         cerr << "Usage: ./program <N> <M>\n";
@@ -75,21 +79,26 @@ int main(int argc, char* argv[]) {
     int N = stoi(argv[1]);
     int M = stoi(argv[2]);
 
-    numbers.clear();
-    numbers.reserve(N);
-    for (int i = 0; i < N; i++) numbers.push_back(i);
+    arr.clear();
+    arr.reserve(N);
 
-    auto start = chrono::high_resolution_clock::now();
+    for (int i = 0; i < N; i++) 
+        arr.push_back(i);
 
     pthread_t threads[M];
-    for (int i = 0; i < M; i++) pthread_create(&threads[i], nullptr, insertWorker, nullptr);
-    for (int i = 0; i < M; i++) pthread_join(threads[i], nullptr);
+    auto start = chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < M; i++) 
+        pthread_create(&threads[i], nullptr, insertWorker, nullptr);
+    for (int i = 0; i < M; i++) 
+        pthread_join(threads[i], nullptr);
 
     auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> duration = end - start;
 
-    cout << N << " " << M << " " << duration.count()
-         << " " << (llist.verify(numbers) ? "PASS" : "FAIL") << endl;
+    chrono::duration<double> time = end - start;
+
+    cout << N << " " << M << " " << time.count()
+         << " " << (llist.verify(arr) ? "PASS" : "FAIL") << endl;
 
     return 0;
 }
